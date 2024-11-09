@@ -3,13 +3,12 @@
 
 > ***Llama Model Remote Server: MLT server***
 
-## Current Scenarios
+## Scenarios
 - [x] Meeting Frog Scenario ("Teach to Learn" Dialogue System)
 - [x] Restaurant Scenario (Interactive Restaurant Ordering Dialogue System)
 - [ ] Other Scenarios under development
       
 ## Features
-
 🎯 Interactive dialogue-based ordering system 
 
 🗣️ Speech recognition and synthesis using Azure Speech Services 
