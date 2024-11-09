@@ -1,4 +1,4 @@
-# Language Learning Game "Frog"
+# Language Learning Game "Frog" 🐸
 > ***Azure KEYS hidden for now***
 
 > ***Llama Model Remote Server: MLT server***
