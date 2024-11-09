@@ -7,11 +7,17 @@
 ## Features
 
 🎯 Interactive dialogue-based ordering system 
+
 🗣️ Speech recognition and synthesis using Azure Speech Services 
+
 🤖 Natural Language Understanding using LLaMA model 
+
 🎭 Character animations and visual feedback 
+
 🔄 Real-time order modification (Shopping Cart Implemantation) 
+
 💡 Suggestion system for language learner guidance 
+
 🌐 Swedish language TTS & STT support 
 
 ## Technologies Used
