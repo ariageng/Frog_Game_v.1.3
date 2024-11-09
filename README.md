@@ -1,4 +1,7 @@
 # Language Learning Game "Frog"
+> ***Azure KEYS hidden for now***
+> ***Llama Moedel Remote Server: MLT server***
+
 ## Current Scenarios
 - [x] Meeting Frog Scenario ("Teach to Learn" Dialogue System)
 - [x] Restaurant Scenario (Interactive Restaurant Ordering Dialogue System)
@@ -38,7 +41,7 @@ TypeScript/JavaScript for frontend implementation
 
 Node.js 
 
-Azure subscription (for Speech and Language services) *KEYS hidden for now*
+Azure subscription (for Speech and Language services) 
 
 Local/Remote LLaMA model setup
 
