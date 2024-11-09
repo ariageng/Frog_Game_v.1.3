@@ -1,248 +1,122 @@
-import { assign, createActor, setup } from "xstate";
+import { assign, createActor, setup, ActorRefFrom } from "xstate";
 import { speechstate } from "speechstate";
-import { createBrowserInspector } from "@statelyai/inspect";
-import { NLU_KEY,KEY } from "./azure.js";
-import { grammar_prof } from "./grammar.js";
+//import { createBrowserInspector } from "@statelyai/inspect";
+import { NLU_KEY,KEY } from "./azure";
+//import { grammar_prof } from "./grammar.js";
+import { showNarratorText, hideNarratorText, showFrogText, hideFrogText, showCharacterText, hideCharacterText, showCatshier, hideCatshier, frogSpeak, frogWaiting, frogWithBurger } from "./functions";
 
-const inspector = createBrowserInspector();
-
+// const inspector = createBrowserInspector(); 
 //basic speech recognition
-const azureCredentials = {
+
+interface AzureCredentials {
+  endpoint: string;
+  key: string;
+}
+const azureCredentials: AzureCredentials = {
   endpoint:
     "https://northeurope.api.cognitive.microsoft.com/sts/v1.0/issuetoken",
   key: KEY,
 };
 
 //nlu speech recognition
-const azureLanguageCredentials = {
+interface AzureLanguageCredentials extends AzureCredentials {
+  deploymentName: string;
+  projectName: string;
+}
+const azureLanguageCredentials: AzureLanguageCredentials = {
   endpoint:
   "https://language-resource-tianyigeng.cognitiveservices.azure.com/language/:analyze-conversations?api-version=2022-10-01-preview",
   key: NLU_KEY,
-  deploymentName: "appointment",
-  projectName: "appointment",
+  deploymentName: "frog_deploy",
+  projectName: "frog",
 
 };
 
-const settings = {
+interface Settings {
+  azureLanguageCredentials: AzureLanguageCredentials;
+  azureCredentials: AzureCredentials;
+  asrDefaultCompleteTimeout: number;
+  asrDefaultNoInputTimeout: number;
+  locale: string;
+  ttsDefaultVoice: string;
+}
+const settings: Settings = {
   azureLanguageCredentials: azureLanguageCredentials, /** global activation of NLU */
   azureCredentials: azureCredentials, 
   asrDefaultCompleteTimeout: 0,
   asrDefaultNoInputTimeout: 4000,
-  locale: "en-US",
-  ttsDefaultVoice: "en-US-AndrewNeural",
+  locale: "sv-SE",
+  ttsDefaultVoice: "sv-SE-MattiasNeural",
   //speechRecognitionEndpointId: "9a735a2d-1224-4398-baaa-9b0c80e1032e",
 };
 
-/* Grammar definition */
-const grammar_professowl = grammar_prof
-
-
-
-/* Helper functions */
-function showNarratorText(targetText) {
-  // Get the parent div with id "narrator-bubble"
-  const narratorBubbleDiv = document.querySelector("#narrator-bubble");
-
-  // Remove existing chat bubbles
-  while (narratorBubbleDiv.firstChild) {
-    narratorBubbleDiv.removeChild(narratorBubbleDiv.firstChild);
-  }
-  
-  // Create a new div for the chat bubble
-  const chatBubble = document.createElement("div")
-  chatBubble.classList.add("narrator-bubble");
-  
-  // Add text to the chat bubble
-  const textElement = document.createElement("p");
-  textElement.textContent = targetText
-  
-  // Append the text element to the chat bubble
-  chatBubble.appendChild(textElement)
-
-  // Append the chat bubble to the parent div
-  narratorBubbleDiv.appendChild(chatBubble);  
-
-  // Ensure the narrator bubble is visible
-  narratorBubbleDiv.style.display = "flex";
+// Define types for the context
+interface GameContext {
+  action_counter: number;
+  noInputCount: number;
+  input: string | null;
+  wordOrSentence: "word" | "sentence" | null;
+  feature: string | null;
+  content: string | null;
+  word: Record<string, { topic: string }>;
+  sentence: Record<string, { topic: string }>;
+  ssRef: ActorRefFrom<typeof speechstate>;
 }
 
-function showFrogText(targetText) {
-  // Get the parent div with id "frog-bubble"
-  const frogBubbleSpan = document.querySelector("#frog-bubble");
+// Helper function
+const generateRepromptFormulation = (count: number): string => {
+  // Implementation here
+  return "Please say something";
+};
 
-  // Remove existing chat bubbles
-  while (frogBubbleSpan.firstChild) {
-    frogBubbleSpan.removeChild(frogBubbleSpan.firstChild);
-  }
-
-  // Create a new span for the chat bubble
-  const chatBubble = document.createElement("span")
-  chatBubble.classList.add("chat-bubble");
-  
-  // Add text to the chat bubble
-  const textElement = document.createElement("p");
-  textElement.textContent = targetText
-  
-  // Append the text element to the chat bubble
-  chatBubble.appendChild(textElement)
-
-  // Append the chat bubble to the parent div
-  frogBubbleSpan.appendChild(chatBubble);  
-}
-
-function hideFrogText() {
-  const frogBubbleSpan = document.querySelector("#frog-bubble");
-  if (frogBubbleSpan) {
-    while (frogBubbleSpan.firstChild) {
-      frogBubbleSpan.removeChild(frogBubbleSpan.firstChild);
-    }
-  }
-}
-
-function showCharacterText(targetText) {
-  // Get the parent span with id "character-bubble"
-  const characterBubbleSpan = document.querySelector("#character-bubble");
-
-  // Remove existing chat bubbles
-  while (characterBubbleSpan.firstChild) {
-    characterBubbleSpan.removeChild(characterBubbleSpan.firstChild);
-  }
-
-  // Create a new span for the chat bubble
-  const chatBubble = document.createElement("span")
-  chatBubble.classList.add("chat-bubble");
-  
-  // Add text to the chat bubble
-  const textElement = document.createElement("p");
-  textElement.textContent = targetText
-  
-  // Append the text element to the chat bubble
-  chatBubble.appendChild(textElement)
-
-  // Append the chat bubble to the parent div
-  characterBubbleSpan.appendChild(chatBubble);  
-}
-
-function hideCharacterText() {
-  const characterBubbleSpan = document.querySelector("#character-bubble");
-  if (characterBubbleSpan) {
-    while (characterBubbleSpan.firstChild) {
-      characterBubbleSpan.removeChild(characterBubbleSpan.firstChild);
-    }
-  }
-}
-
-function frogSpeak() {
-  const frogImage = document.getElementById("frog-image");
-
-  // Replace existing gif
-  if (frogImage) {
-    frogImage.src = "src/frog_talking.gif";
-  }
-}
-
-function frogWaiting() {
-  const frogImage = document.getElementById("frog-image");
-
-  // Replace existing gif
-  if (frogImage) {
-    frogImage.src = "src/frog_normal.gif";
-  }
-}
-
-function frogWithBurger() {
-  const frogImage = document.getElementById("frog-image");
-
-  // Replace existing gif
-  if (frogImage) {
-    frogImage.src = "src/frog_with_burger.gif";
-  }
-}
-
-function showCatshier() {
-  // Get the parent div with id "characters"
-  const characterDiv = document.getElementById("characters");
-
-  const newCharacter = document.createElement("span");
-  newCharacter.setAttribute("id", "catshier-span")
-  
-  // Create an image element
-  const newImage = document.createElement("img");
-  newImage.classList.add("character");
-  newImage.src = "src/catshier.gif";
-  newImage.alt = "Catshier";
-
-  // Append the image to the newly created span
-  newCharacter.appendChild(newImage);
-
-  // Append the chat bubble to the parent div
-  characterDiv.appendChild(newCharacter);  
-}
-
-function hideNarratorText() {
-  // Get the parent div with id "narrator-bubble"
-  const narratorBubbleDiv = document.querySelector("#narrator-bubble");
-
-  // Remove all child elements of the narrator bubble
-  while (narratorBubbleDiv.firstChild) {
-    narratorBubbleDiv.removeChild(narratorBubbleDiv.firstChild);
-  }
-
-  // Hide the narrator bubble
-  narratorBubbleDiv.style.display = "none";
-}
-
-function hideCatshier() {
-  // Get the parent div with id "characters"
-  const characterDiv = document.getElementById("characters");
-
-  // Get the character element
-  const characterSpan = characterDiv.querySelector("#catshier-span");
-
-  // Remove the character element if it exists
-  if (characterSpan) {
-    characterSpan.remove();
-  }
-}
+// Define types for the events
+type GameEvent = 
+  | { type: "ASRTTS_READY" }
+  | { type: "CLICK" }
+  | { type: "ASR_NOINPUT" }
+  | { type: "GameOver" }
+  | { type: "SPEAK_COMPLETE" }
+  | { type: "STILL_Noinput" }
+  | { type: "RECOGNISED", value: Array<{ utterance: string }>, nluValue: { topIntent: string } }
+  | { type: "SELECT", value: string };
 
 
-function generateRepromptFormulation(repromptCounter) {
-  switch (repromptCounter) {
-    case 1:
-      return `Frog is waiting for you to say something.`;
-    case 2:
-      return `Sorry, are you still there?`;
-    case 3:
-      return `Frog is listening, please say something.`;
-  }
-}
 
 /* Game Machine */
-const GameMachine = setup({
+const TeachMachine = setup({
+  types: {
+    context: {} as GameContext,
+    events: {} as GameEvent,
+  },
   actions: {
     //Wipes out old button (if any), shows new Start button
-    ShowStartButton:({}) => {
-      const element = document.querySelector("#start-button"); 
-      element.style.display = "block";
-      //remove old buttons if any
-      const existingStartButton = element.querySelector("button");
+    ShowStartButton: ({ context }) => {
+      const teachElement = document.querySelector<HTMLElement>("#teach-start-button");
+      const orderElement = document.querySelector<HTMLElement>("#order-start-button"); // Add this
+      
+      if (!teachElement) return;
+    
+      teachElement.style.display = "block";
+      const existingStartButton = teachElement.querySelector("button");
       if (existingStartButton) {
         existingStartButton.remove();
       }
-      //create new button
+    
       const startButton = document.createElement("button");
       startButton.type = "button";
-      startButton.innerHTML = "Start";
+      startButton.innerHTML = "Att undervisa";
       startButton.addEventListener("click", () => {
-            dmActor.send({type: "CLICK"});
-            // Hide the button after it's clicked
-            element.style.display = "none";
-          });
-      element.appendChild(startButton)
+        teachMachineActor.send({ type: "CLICK" });
+        teachElement.style.display = "none";
+        if (orderElement) orderElement.style.display = "none"; // Add this
+      });
+      teachElement.appendChild(startButton);
     },
     //Wipes out old button (if any), shows new Talk button and takes input
     ShowTalkButton: ({ context }) => {
-      const element = document.querySelector("#talk-button"); 
+      const element = document.querySelector<HTMLElement>("#talk-button");
+      if (!element) return;
+
       //remove old buttons if any
       const existingTalkButton = element.querySelector("button");
       if (existingTalkButton) {
@@ -251,25 +125,27 @@ const GameMachine = setup({
       //create new button
       const talkButton = document.createElement("button");
       talkButton.type = "button";
-      talkButton.innerHTML = "Talk";
+      talkButton.innerHTML = "Prata";
       // Start listening when clicked 
       talkButton.addEventListener("click", () => {
           context.ssRef.send({
           type: "LISTEN",
           value:{ nlu:true, completeTimeout: 5}});
           // Show changed text 
-          talkButton.innerHTML = "U are talking to Frog.."
+          talkButton.innerHTML = "Du pratar med Grodan..."
           });
       element.appendChild(talkButton);
       element.style.display = "block";
     },
     HideTalkButton:({}) => {
-      const element = document.querySelector("#talk-button"); 
+      const element = document.querySelector<HTMLElement>("#talk-button"); 
+      if (!element) return;
+
       // Hide the Talk Button
       element.style.display = "none";
     },
     //Wipe out old texts, speak, and show new texts
-    NarratorSpeak:({ context }, params) => {
+    NarratorSpeak:({ context }, params: string) => {
       context.ssRef.send({
         type: "SPEAK",
         value: {
@@ -279,7 +155,9 @@ const GameMachine = setup({
       showNarratorText(params);
     },
     ShowButton: ({ context }) => {
-      const element = document.querySelector("#buttons"); 
+      const element = document.querySelector<HTMLElement>("#buttons"); 
+      if (!element) return;
+
       //remove old option buttons if any
       const existingButton = element.querySelector("button");
       if (existingButton) {
@@ -293,7 +171,7 @@ const GameMachine = setup({
         optionButton.type = "button";
         optionButton.innerHTML = option;
         optionButton.addEventListener("click", () => {
-          dmActor.send({type: "SELECT", value: option})
+          teachMachineActor.send({type: "SELECT", value: option})
         });
         element.appendChild(optionButton)
       };
@@ -302,13 +180,15 @@ const GameMachine = setup({
         optionButton.type = "button";
         optionButton.innerHTML = option;
         optionButton.addEventListener("click", () => {
-          dmActor.send({type: "SELECT", value: option})
+          teachMachineActor.send({type: "SELECT", value: option})
         });
         element.appendChild(optionButton)
       };
     },
     ShowTeachMoreButton: ({}) => {
-      const element = document.querySelector("#teachmore-button"); 
+      const element = document.querySelector<HTMLElement>("#teachmore-button"); 
+      if (!element) return;
+
       //remove old buttons if any
       const existingButton = element.querySelector("button");
       if (existingButton) {
@@ -317,16 +197,18 @@ const GameMachine = setup({
       //create new button
       const Button = document.createElement("button");
       Button.type = "button";
-      Button.innerHTML = "Go back to teach more";
+      Button.innerHTML = "Gå tillbaka och lär ut mer.";
       element.appendChild(Button);
       element.style.display = "block";
       // Start listening when clicked 
       Button.addEventListener("click", () => {
-        dmActor.send({type: "CLICK"})
+        teachMachineActor.send({type: "CLICK"})
           });
     },
     RemoveTeachMoreButton: ({}) =>{
-      const element = document.querySelector("#teachmore-button"); 
+      const element = document.querySelector<HTMLElement>("#teachmore-button"); 
+      if (!element) return;
+
       //remove old option buttons if any
       const existingButton = element.querySelector("button");
       if (existingButton) {
@@ -334,7 +216,9 @@ const GameMachine = setup({
       }
     },
     RemoveButtons: ({}) => {
-      const element = document.querySelector("#buttons"); 
+      const element = document.querySelector<HTMLElement>("#buttons"); 
+      if (!element) return;
+
       // Remove all button elements within the container
       const buttons = Array.from(element.querySelectorAll("button"));
       buttons.forEach(button => {
@@ -361,7 +245,7 @@ const GameMachine = setup({
       const paragraph = document.createElement("p");
       
       // Set the inner text of the paragraph to the context content
-      paragraph.textContent = "This is your Frog Dictionary: "+ JSON.stringify(result);
+      paragraph.textContent = "Det här är din Grodordbok: "+ JSON.stringify(result);
 
       // Append the paragraph to the context container element
       contextElement.appendChild(paragraph);
@@ -387,7 +271,7 @@ const GameMachine = setup({
         showNarratorText(repromptFormulation);
       } else {
         hideNarratorText();
-        dmActor.send({type: "STILL_Noinput"});;
+        teachMachineActor.send({type: "STILL_Noinput"});;
       };
     },
         // FrogSpeak:({ context }, params) => {
@@ -416,6 +300,7 @@ const GameMachine = setup({
       }
     },
     isOfTopicFood: ({context}) => {
+      if (!context.input) return false;
       const frogUtterance = context.input.toLowerCase(); // 'input' holds the frog's utterance
       const words = Object.keys(context.word);
       const sentences = Object.keys(context.sentence);
@@ -437,32 +322,27 @@ const GameMachine = setup({
       return false;
     },
     isRightFood: ({context}) => {
+      if (!context.input) return false;
       const frogUtterance = context.input; // 'input' holds the frog's utterance
-      const rightFoodList = ["hamburger", "milkshake", "fries", "nuggets", "burger"];
+      const rightFoodList = ["hamburgare", "milkshake", "pommes", "nuggets", "burgare"];
 
-      // Check if frogUtterance involves any of the right food
-      for (const food of rightFoodList) {
-        if (frogUtterance.includes(food)) {
-          return true;
-        }
-      }
-
-      return false;
+      // Check if frogUtterance is involved in any word with topic "food"
+      return rightFoodList.some(food => frogUtterance.includes(food));
     },
   },
 }).createMachine({
   context: {
-    /* For func actionOnce */
-    action_counter:0,
-    noInputCount:1,
+    action_counter: 0,
+    noInputCount: 1,
     input: null,
     wordOrSentence: null,
     feature: null,
     content: null,
     word: {},
     sentence: {},
+    ssRef: null as any, // Will be assigned during SpeechstateSpawn
   },
-  id: "Game",
+  id: "Teach",
   initial: "SpeechstateSpawn",
   states: {
     "SpeechstateSpawn": {
@@ -483,7 +363,7 @@ const GameMachine = setup({
     },
     "Running": {
       initial: "Main",
-      on: {ASR_NOINPUT : ".NoInput", GameOver: "#Game.GameOver", },
+      on: {ASR_NOINPUT : ".NoInput", GameOver: "#Teach.GameOver", },
       states:{
         //Any NoInput inside "Main" will lead to a NoInput Prompt
         NoInput : {
@@ -498,7 +378,7 @@ const GameMachine = setup({
               {}
             ],
             STILL_Noinput:{
-              target:"#Game.GameOver.NoInputEnding"
+              target:"#Teach.GameOver.NoInputEnding"
             }
           },
         },
@@ -513,7 +393,7 @@ const GameMachine = setup({
               states:{
                 //Greeting Introducing Frog & Show Talk button 
                 GreetingIntro: {
-                  entry: [{type: "HideResults",}, {type:"NarratorSpeak", params:`In the wild expanse, you stumble upon Frog! Eager to broaden its horizons, Frog seeks to master the art of human language from you! Let's kick things off with a friendly greeting!`}, 
+                  entry: [{type: "HideResults",}, {type:"NarratorSpeak", params:`Du träffade Frog! Frog vill lära sig svenska av dig. Kan du börja med en trevlig hälsning?`}, 
                   ], 
                   on: 
                     {SPEAK_COMPLETE: "ListenToGreeting"},
@@ -529,8 +409,13 @@ const GameMachine = setup({
                           const wordOrSentence = "sentence";
                           const newSentence = context.input;
                           const feature = "topic";
+
+                          // Store the new sentence
+                          if (wordOrSentence && newSentence){
                           const content = "greeting";
+                          context[wordOrSentence] = context[wordOrSentence] || {};
                           context[wordOrSentence][newSentence] = { [feature]: content};
+                          }
                           // type: "FrogLearn",
                           // data: {
                           //   wordOrSentence: "sentence",
@@ -548,7 +433,7 @@ const GameMachine = setup({
                 },
                 //Stores the "greeting" and judges it
                 ConfirmGreeting: {
-                  entry: [{type: "NarratorSpeak", params:`Well Said! Let's see if Frog picked it up.`},],
+                  entry: [{type: "NarratorSpeak", params:`Bra sagt! Låt oss se om Frog har plockat upp det.`},],
                   on: {
                     SPEAK_COMPLETE: {
                       actions: [
@@ -556,7 +441,7 @@ const GameMachine = setup({
                           const sentenceKeyWithGreeting = Object.keys(context.sentence).find(
                             key => context.sentence[key].topic === "greeting");
                             console.log("Sentence key with greeting:", sentenceKeyWithGreeting); 
-                          const params = `Frog speaking: "${
+                          const params = `Grodan pratar: "${
                             sentenceKeyWithGreeting
                           }".`;
                           showFrogText(params);
@@ -569,7 +454,7 @@ const GameMachine = setup({
                           });
                           },
                       ],
-                      target:"#Game.Running.Main.0_2_WordTeaching",
+                      target:"#Teach.Running.Main.0_2_WordTeaching",
                     },
                   },
                 },
@@ -584,7 +469,7 @@ const GameMachine = setup({
                       actions:[ 
                         frogWaiting, 
                         hideFrogText,
-                        {type:"NarratorSpeak", params:`Let's try teaching. How about a word on topic of food?`},
+                        {type:"NarratorSpeak", params:`Låt oss försöka lära ut. Hur är det med ett ord om mat?`},
                       ],
                       target:"WordShowTalk",
                     },
@@ -610,7 +495,10 @@ const GameMachine = setup({
                           const newWord = context.input;
                           const feature = "topic";
                           const content = "food";
-                          context[wordOrSentence][newWord] = { [feature]: content};
+                          if (wordOrSentence && newWord){
+                            context[wordOrSentence] = context[wordOrSentence] || {};
+                            context[wordOrSentence][newWord] = { [feature]: content};
+                          }
                         },
                         ({context}) => console.log(context),
                       ],
@@ -620,13 +508,13 @@ const GameMachine = setup({
                   exit: [{type: "HideTalkButton",}]
                 },
                 WordConfirm:{
-                  entry: [{type: "NarratorSpeak", params:`Yummy! Let's see if Frog picked it up.`},],
+                  entry: [{type: "NarratorSpeak", params:`Mums! Låt oss se om Frog har plockat upp det.`},],
                   on: {
                     SPEAK_COMPLETE: {
                       actions: [
                         ({ context }) => {
                             const wordKeyWithFood = context.input;
-                            const params = `Frog speaking: "${
+                            const params = `Frog talar: "${
                               wordKeyWithFood
                             }".`;
                             showFrogText(params);
@@ -639,7 +527,7 @@ const GameMachine = setup({
                             });
                           },
                       ],
-                      target:"#Game.Running.Main.0_3_ReadyForMeeting",
+                      target:"#Teach.Running.Main.0_3_ReadyForMeeting",
                     },
                   },
                 }, 
@@ -654,7 +542,7 @@ const GameMachine = setup({
                       actions:[ 
                         frogWaiting, 
                         hideFrogText,
-                        {type:"NarratorSpeak", params:`Well done! Now Frog wants to try the language it has picked up! Are we ready for this?`},
+                        {type:"NarratorSpeak", params:`Bra gjort! Nu vill Frog prova det språk den har lärt sig! Är vi redo för detta?`},
                       ],
                       target:"MeetDeciding",
                     },
@@ -677,25 +565,25 @@ const GameMachine = setup({
                         guard: ({ event }) => 
                           {const recognizedUtterance = event.nluValue;
                             console.log(recognizedUtterance);
-                          return ( recognizedUtterance.topIntent === 'positive response');
+                          return ( recognizedUtterance.topIntent === 'positivt svar');
                           },
                         actions:[ {type: "HideTalkButton",},
                           {type:"NarratorSpeak", 
-                          params:`Ok, Frog is ready to go.`}
+                          params:`Okej, Frog är redo att gå.`}
                         ],
-                        target:"#Game.Running.Main.0_4_Meeting",
+                        target:"#Teach.Running.Main.0_4_Meeting",
                       },
                       {
                         guard: ({ event }) => 
                         {const recognizedUtterance = event.nluValue;
                           console.log(recognizedUtterance);
-                        return ( recognizedUtterance.topIntent === 'negative response');
+                        return ( recognizedUtterance.topIntent === 'negativt svar');
                         },
                       actions:[ {type: "HideTalkButton",},
                         {type:"NarratorSpeak", 
-                          params:`I agree. Let's teach some more.`}
+                          params:`Jag håller med. Låt oss lära ut mer.`}
                       ],
-                      target:"#Game.Running.Main.0_5_TeachMore",
+                      target:"#Teach.Running.Main.0_5_TeachMore",
                       },
                     ],
                   },
@@ -708,7 +596,7 @@ const GameMachine = setup({
                 MeetingIntro:{
                   on:{
                     SPEAK_COMPLETE: {
-                      actions: [showCatshier,{type: "NarratorSpeak", params:`Frog has met Catshier, Catshier works at Wax Burger.`}],
+                      actions: [showCatshier,{type: "NarratorSpeak", params:`Frog har träffat Catshier, Catshier arbetar på Wax Burger.`}],
                       target:"CharacterSpeaking",
                     },
                   },
@@ -718,7 +606,7 @@ const GameMachine = setup({
                     SPEAK_COMPLETE: {
                       actions: [ 
                       ({ context }) => {
-                        const params = `Catshier speaking: "Hi, what can I do for you?"`;
+                        const params = `Catshier säger: 'Hej, vad kan jag göra för dig?`;
                         showCharacterText(params);
                         context.ssRef.send({
                           type: "SPEAK",
@@ -746,7 +634,7 @@ const GameMachine = setup({
                     SELECT: {
                       actions: [
                         ({ context,event }) => {
-                          const params = `Frog speaking: "${event.value}"`;
+                          const params = `Frog pratar: "${event.value}"`;
                           showFrogText(params);
                           frogSpeak();
                           context.ssRef.send({
@@ -766,13 +654,13 @@ const GameMachine = setup({
                     // Send to "Teach More" stage if "TeachMore" is CLICKed
                     CLICK: {
                       actions: [
-                      {type:"NarratorSpeak", params:`Good idea. Let's teach more.`},
+                      {type:"NarratorSpeak", params:`Bra idé. Låt oss lära ut mer.`},
                       {type: "RemoveButtons"}, 
                       hideFrogText, 
                       hideCharacterText,
                       hideCatshier,
                       {type: "RemoveTeachMoreButton"}],
-                      target: "#Game.Running.Main.0_5_TeachMore"
+                      target: "#Teach.Running.Main.0_5_TeachMore"
                     },
                   },
                 },
@@ -783,7 +671,7 @@ const GameMachine = setup({
                         guard: {type: "isRightFood"},
                         actions: [
                           ({ context }) => {
-                            const params = `Catshier speaking: "Sure! Here is your order. Have a nice day!`;
+                            const params = `Catshier säger: 'Självklart! Här är din beställning. Ha en trevlig dag!`;
                             showCharacterText(params);
                             frogWaiting();
                             context.ssRef.send({
@@ -794,13 +682,13 @@ const GameMachine = setup({
                             });
                           },
                         ],
-                        target: "#Game.GameOver.StandardEnding",
+                        target: "#Teach.GameOver.StandardEnding",
                       },
                       {
                         guard: {type: "isOfTopicFood"},
                         actions: [
                           ({ context }) => {
-                            const params = `Catshier speaking: "Sorry, we don't sell that here. We offer hamburger, milkshake, fries and fish nuggets.`;
+                            const params = `Catshier säger: 'Förlåt, vi säljer inte det här. Vi erbjuder hamburgare, milkshake, pommes frites och fisknuggets.`;
                             showCharacterText(params);
                             frogWaiting();
                             context.ssRef.send({
@@ -811,10 +699,10 @@ const GameMachine = setup({
                             });
                           },
                         ],
-                        target: "#Game.Running.Main.0_4_Meeting.ChooseSpeech",
+                        target: "#Teach.Running.Main.0_4_Meeting.ChooseSpeech",
                       },
                       { actions: [({ context }) => {
-                          const params = `Catshier speaking: "So what do you want to order?"`;
+                          const params = `Catshier säger: 'Så vad vill du beställa?`;
                           showCharacterText(params);
                           frogWaiting();
                           context.ssRef.send({
@@ -825,7 +713,7 @@ const GameMachine = setup({
                           });
                         },
                         ],
-                        target: "#Game.Running.Main.0_4_Meeting.ChooseSpeech",}
+                        target: "#Teach.Running.Main.0_4_Meeting.ChooseSpeech",}
                     ],
                   },
                 },
@@ -838,7 +726,7 @@ const GameMachine = setup({
                   on: {
                     SPEAK_COMPLETE: {
                       actions:[
-                        {type:"NarratorSpeak", params:`Are we learning a word?`},
+                        {type:"NarratorSpeak", params:`Lär vi oss ett ord?`},
                       ],
                       target:"wordOrSentenceDeciding",
                     },
@@ -864,14 +752,14 @@ const GameMachine = setup({
                           return ( recognizedUtterance.topIntent === 'positive response');
                           },
                         actions:[ assign({ wordOrSentence: () => "word" }),
-                        {type:"NarratorSpeak", params:`What topic is it?`},
+                        {type:"NarratorSpeak", params:`Vilket ämne handlar det om?`},
                         {type: "HideTalkButton",},
                         ],
                         target:"topicDeciding",
                       },
                       { 
                         actions:[ assign({ wordOrSentence: () => "sentence" }),
-                        {type:"NarratorSpeak", params:`What topic is it?`},
+                        {type:"NarratorSpeak", params:`Vilket ämne handlar det om?`},
                         {type: "HideTalkButton",},
                         ],
                         target:"topicDeciding",
@@ -894,7 +782,7 @@ const GameMachine = setup({
                     RECOGNISED: [
                       { //store the "topic" name (e.g. Food)
                         actions:[ assign({ content: ({ event }) => event.value[0].utterance.toLowerCase() },),
-                          {type:"NarratorSpeak", params:`Now what is the word/sentence?`},
+                          {type:"NarratorSpeak", params:`Vad är ordet eller meningen nu?`},
                           {type: "HideTalkButton",}
                         ],
                         target:"inputDeciding",
@@ -917,7 +805,7 @@ const GameMachine = setup({
                     RECOGNISED: [
                       { //store the input (e.g. "ice cream")
                         actions:[ assign({ input: ({ event }) => event.value[0].utterance.toLowerCase()},),
-                          {type: "NarratorSpeak", params:`Great! Let's see if Frog picked it up.`},
+                          {type: "NarratorSpeak", params:`Bra! Låt oss se om Grodan har plockat upp det.`},
                           {type: "HideTalkButton",}],
                         target:"FrogRepeat",
                       },
@@ -950,7 +838,7 @@ const GameMachine = setup({
                   on: {
                     SPEAK_COMPLETE: {
                       actions: [()=> {frogWaiting(); hideFrogText();},
-                        {type: "NarratorSpeak", params:`Was it right?`},
+                        {type: "NarratorSpeak", params:`Var det rätt?`},
                         {type: "ShowTalkButton"}
                       ],
                       target:"ResultOfConfirm",
@@ -964,7 +852,7 @@ const GameMachine = setup({
                         guard: ({ event }) => 
                           {const recognizedUtterance = event.nluValue;
                             console.log(recognizedUtterance);
-                          return ( recognizedUtterance.topIntent === 'positive response');
+                          return ( recognizedUtterance.topIntent === 'positivt svar');
                           },
                         actions:[ 
                           ({ context }) => {
@@ -972,19 +860,22 @@ const GameMachine = setup({
                           const input = context.input;
                           const feature = "topic";
                           const content = context.content;
-                          context[wordOrSentence][input] = { [feature]: content};
+                          if (wordOrSentence && input && feature && content){
+                            context[wordOrSentence] = context[wordOrSentence] || {};
+                            context[wordOrSentence][input] = {[feature]: content};
+                          }
                           },
-                          {type: "NarratorSpeak", params:`Great!`},
+                          {type: "NarratorSpeak", params:`Bra!`},
                           {type: "HideTalkButton",}
                         ],
-                        target:"#Game.Running.Main.0_3_ReadyForMeeting.MeetIntro",
+                        target:"#Teach.Running.Main.0_3_ReadyForMeeting.MeetIntro",
                       },
                       { 
                         actions:[
-                        {type:"NarratorSpeak", params:`I see. Let's do it again.`},
+                        {type:"NarratorSpeak", params:`Jag förstår. Låt oss göra det igen.`},
                         {type: "HideTalkButton",}
                         ],
-                        target:"#Game.Running.Main.0_5_TeachMore",
+                        target:"#Teach.Running.Main.0_5_TeachMore",
                       },
                     ],
                   },
@@ -1003,7 +894,7 @@ const GameMachine = setup({
           on:{
             SPEAK_COMPLETE: {
               actions:[
-                { type: "NarratorSpeak", params: `Game Over. You had great conversations with the Frog. Check out this nice Frog Dictionary you have generated!`,},
+                { type: "NarratorSpeak", params: `Spelet är över. Du hade fantastiska samtal med Grodan. Kolla in den fina Grodordbok du har skapat!`,},
                 () => { hideFrogText(), hideCharacterText(), hideCatshier(), frogWithBurger()},
               ],
               target:"ShowResults"
@@ -1025,7 +916,7 @@ const GameMachine = setup({
         WaitingForRestart:{
           on:{
             CLICK: {
-              target:"#Game.Running.Main.0_1_Greeting"
+              target:"#Teach.Running.Main.0_1_Greeting"
             },
           },
         },
@@ -1033,11 +924,11 @@ const GameMachine = setup({
           initial:"Ending",
           states:{
             Ending: {
-              entry:[{type:"NarratorSpeak", params:`The Game is ended.`},{type: "HideTalkButton",},],
+              entry:[{type:"NarratorSpeak", params:`Spelet är slut.`},{type: "HideTalkButton",},],
               on: {
                 SPEAK_COMPLETE:{
                   actions:[{ type:"ShowStartButton" }],
-                  target:"#Game.GameOver.WaitingForRestart",
+                  target:"#Teach.GameOver.WaitingForRestart",
                 },
               }
             }
@@ -1050,23 +941,32 @@ const GameMachine = setup({
 
 
 /* Create StateMachine Actor */
-const dmActor = createActor(GameMachine, {
-  inspect: inspector.inspect,
+const teachMachineActor = createActor(TeachMachine, {
+  //inspect: inspector.inspect,
 }).start();
 
-
-dmActor.subscribe((state) => {
-  console.log ( state )
+teachMachineActor.subscribe((state) => {
+  console.log ( 'Teach Machine State:',state )
 }); 
 
-export function setupGameMachine(element) {
-  /*
-  dmActor.getSnapshot().context.ssRef.subscribe((snapshot) => {
-    element.innerHTML = `${snapshot.value.AsrTtsManager.Ready}`;
+export function setupTeachMachine(element) {
+  if (!element) return;
+  
+  element.style.display = "block";
+  const existingButton = element.querySelector("button");
+  if (existingButton) {
+    existingButton.remove();
+  }
+  
+  const startButton = document.createElement("button");
+  startButton.type = "button";
+  startButton.innerHTML = "Att undervisa";
+  startButton.addEventListener("click", () => {
+    teachMachineActor.send({ type: "CLICK" });
+    element.style.display = "none";
   });
-  */
+  element.appendChild(startButton);
 }
-
 
 
 

@@ -145,3 +145,90 @@ div > span {
 #chatting-bubbles{
   position: relative;
 }
+
+
+/* for suggestion buttons */
+#suggestions {
+  display: none;
+  margin: 10px 0;
+}
+
+.suggestion-btn {
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.suggestion-btn.food {
+  background-color: #FFE0B2;
+}
+
+.suggestion-btn.drink {
+  background-color: #B3E0FF;
+}
+
+.suggestion-btn.question {
+  background-color: #E1BEE7;
+}
+
+.suggestion-btn:hover {
+  transform: scale(1.05);
+  opacity: 0.9;
+}
+
+/* for order confirmation */
+#order-confirmation {
+  display: none;
+  margin: 20px;
+  padding: 20px;
+  border: 2px solid #ccc;
+  border-radius: 8px;
+  background: white;
+}
+
+.order-list {
+  margin-bottom: 20px;
+}
+
+.order-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 10px 0;
+  padding: 10px;
+  background: #f5f5f5;
+  border-radius: 4px;
+}
+
+.quantity-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.quantity-controls button {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: none;
+  background: #007bff;
+  color: white;
+  cursor: pointer;
+}
+
+.count {
+  min-width: 30px;
+  text-align: center;
+}
+
+.confirm-order-btn {
+  width: 100%;
+  padding: 10px;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
